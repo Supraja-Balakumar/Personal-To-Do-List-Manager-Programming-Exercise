@@ -1,0 +1,166 @@
+from datetime import datetime
+
+# Task class with Builder Pattern
+class Task:
+    def __init__(self, description, due_date=None):
+        self.description = description
+        self.completed = False
+        self.due_date = due_date
+
+    def mark_completed(self):
+        self.completed = True
+
+    def unmark_completed(self):
+        self.completed = False
+
+    def __str__(self):
+        status = "Completed" if self.completed else "Pending"
+        task_info = f"{self.description} - {status}"
+        if self.due_date:
+            task_info += f", Due: {self.due_date.strftime('%Y-%m-%d')}"
+        return task_info
+
+    # Memento Pattern - Create a snapshot of task state
+    def create_memento(self):
+        return TaskMemento(self.description, self.completed, self.due_date)
+
+    # Memento Pattern - Restore task state from a snapshot
+    def restore_from_memento(self, memento):
+        self.description = memento.description
+        self.completed = memento.completed
+        self.due_date = memento.due_date
+
+
+# Task Memento class for storing task state
+class TaskMemento:
+    def __init__(self, description, completed, due_date):
+        self.description = description
+        self.completed = completed
+        self.due_date = due_date
+
+
+# Caretaker class for managing task history
+class TaskHistory:
+    def __init__(self):
+        self.history = []
+
+    def add_memento(self, memento):
+        self.history.append(memento)
+
+    def get_memento(self, index):
+        if 0 <= index < len(self.history):
+            return self.history[index]
+        else:
+            return None
+
+
+# To-Do List Manager class
+class ToDoListManager:
+    def __init__(self):
+        self.tasks = []
+        self.history = TaskHistory()
+
+    def add_task(self, description, due_date=None):
+        task = Task(description, due_date)
+        self.tasks.append(task)
+        self.history.add_memento(task.create_memento())
+        return task
+
+    def mark_completed(self, description):
+        for task in self.tasks:
+            if task.description == description:
+                task.mark_completed()
+                self.history.add_memento(task.create_memento())
+                return True
+        return False
+
+    def delete_task(self, description):
+        for task in self.tasks:
+            if task.description == description:
+                self.tasks.remove(task)
+                return True
+        return False
+
+    def view_tasks(self, filter_type="all"):
+        if filter_type == "completed":
+            filtered_tasks = [task for task in self.tasks if task.completed]
+        elif filter_type == "pending":
+            filtered_tasks = [task for task in self.tasks if not task.completed]
+        else:
+            filtered_tasks = self.tasks
+
+        return filtered_tasks
+
+
+if __name__ == "__main__":
+    todo_manager = ToDoListManager()
+
+    while True:
+        print("\nTo-Do List Manager Menu:")
+        print("1. Add Task")
+        print("2. Mark Completed")
+        print("3. Delete Task")
+        print("4. View Tasks")
+        print("5. Undo")
+        print("6. Redo")
+        print("7. Quit")
+
+        choice = input("Enter your choice: ")
+
+        if choice == "1":
+            description = input("Enter task description: ")
+            due_date = input("Enter due date (YYYY-MM-DD, optional): ")
+            if due_date:
+                due_date = datetime.strptime(due_date, "%Y-%m-%d")
+            todo_manager.add_task(description, due_date)
+
+        elif choice == "2":
+            description = input("Enter task description to mark as completed: ")
+            if todo_manager.mark_completed(description):
+                print(f"{description} marked as completed.")
+            else:
+                print(f"Task '{description}' not found.")
+
+        elif choice == "3":
+            description = input("Enter task description to delete: ")
+            if todo_manager.delete_task(description):
+                print(f"{description} deleted.")
+            else:
+                print(f"Task '{description}' not found.")
+
+        elif choice == "4":
+            filter_type = input("View all tasks, completed tasks, or pending tasks? (all/completed/pending): ")
+            tasks = todo_manager.view_tasks(filter_type)
+            if tasks:
+                for i, task in enumerate(tasks, 1):
+                    print(f"{i}. {str(task)}")
+            else:
+                print("No tasks found.")
+
+        elif choice == "5":
+            if len(todo_manager.history.history) > 1:
+                todo_manager.history.history.pop()
+                last_memento = todo_manager.history.get_memento(-1)
+                if last_memento:
+                    for task in todo_manager.tasks:
+                        task.restore_from_memento(last_memento)
+                print("Undo successful.")
+            else:
+                print("Undo not possible.")
+
+        elif choice == "6":
+            if len(todo_manager.history.history) > 0:
+                last_memento = todo_manager.history.get_memento(-1)
+                if last_memento:
+                    for task in todo_manager.tasks:
+                        task.restore_from_memento(last_memento)
+                print("Redo successful.")
+            else:
+                print("Redo not possible.")
+
+        elif choice == "7":
+            print("Goodbye!")
+            break
+
+        else:
+            print("Invalid choice. Please try again.")
